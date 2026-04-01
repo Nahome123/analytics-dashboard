@@ -38,6 +38,7 @@ type DashboardData = {
 }
 
 type DataSource = 'local' | 'api'
+type ActivePage = 'dashboard' | 'reports' | 'analytics' | 'settings'
 
 function App() {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -46,6 +47,7 @@ function App() {
   const [statusFilter, setStatusFilter] = useState('All')
   const [searchTerm, setSearchTerm] = useState('')
   const [dataSource, setDataSource] = useState<DataSource>('local')
+  const [activePage, setActivePage] = useState<ActivePage>('dashboard')
 
   useEffect(() => {
     const loadLocalData = async () => {
@@ -147,170 +149,308 @@ function App() {
     return ['All', ...new Set(data.activities.map((item) => item.status))]
   }, [data])
 
+  const summary = useMemo(() => {
+    const totalClicks = filteredActivities.reduce(
+      (sum, item) => sum + item.clicks,
+      0
+    )
+    const totalConversions = filteredActivities.reduce(
+      (sum, item) => sum + item.conversions,
+      0
+    )
+    const conversionRate =
+      totalClicks === 0 ? 0 : ((totalConversions / totalClicks) * 100).toFixed(1)
+
+    return {
+      totalClicks,
+      totalConversions,
+      conversionRate,
+    }
+  }, [filteredActivities])
+
+  const resetFilters = () => {
+    setStatusFilter('All')
+    setSearchTerm('')
+  }
+
   if (loading) return <div className="page-message">Loading dashboard...</div>
   if (error) return <div className="page-message error">{error}</div>
   if (!data) return <div className="page-message">No data found.</div>
+
+  const renderDashboardPage = () => (
+    <>
+      <section className="stats-grid">
+        {data.stats.map((stat) => (
+          <div className="card stat-card" key={stat.title}>
+            <h3>{stat.title}</h3>
+            <p className="value">
+              {stat.title === 'Revenue' || stat.title === 'Avg Price'
+                ? `$${Number(stat.value).toLocaleString()}`
+                : Number(stat.value).toLocaleString()}
+            </p>
+            <span
+              className={stat.change >= 0 ? 'change positive' : 'change negative'}
+            >
+              {stat.change >= 0 ? '+' : ''}
+              {stat.change}%
+            </span>
+          </div>
+        ))}
+      </section>
+
+      <section className="charts-grid">
+        <div className="card large-card">
+          <h3>Traffic Overview</h3>
+          <div className="chart-wrapper">
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={data.traffic}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="visits" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="card filter-card">
+          <h3>Filters</h3>
+
+          <label>Status</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            {statusOptions.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+
+          <label>Search Campaign</label>
+          <input
+            type="text"
+            placeholder="Type campaign name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+
+          <button className="action-btn" onClick={resetFilters}>
+            Reset Filters
+          </button>
+
+          <div className="filter-summary">
+            Showing <strong>{filteredActivities.length}</strong> result(s)
+          </div>
+        </div>
+      </section>
+
+      <section className="card table-card">
+        <div className="table-header">
+          <h3>Recent Activity</h3>
+          <span className="pill">
+            {dataSource === 'local' ? 'Local Data' : 'API Data'}
+          </span>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Campaign</th>
+              <th>Status</th>
+              <th>Clicks</th>
+              <th>Conversions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredActivities.map((item) => (
+              <tr key={item.campaign}>
+                <td>{item.campaign}</td>
+                <td>
+                  <span className={`status-badge ${item.status.toLowerCase()}`}>
+                    {item.status}
+                  </span>
+                </td>
+                <td>{item.clicks}</td>
+                <td>{item.conversions}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {filteredActivities.length === 0 && (
+          <p className="empty-state">No campaigns match your filter.</p>
+        )}
+      </section>
+    </>
+  )
+
+  const renderReportsPage = () => (
+    <section className="reports-grid">
+      <div className="card">
+        <h3>Total Clicks</h3>
+        <p className="value">{summary.totalClicks.toLocaleString()}</p>
+      </div>
+
+      <div className="card">
+        <h3>Total Conversions</h3>
+        <p className="value">{summary.totalConversions.toLocaleString()}</p>
+      </div>
+
+      <div className="card">
+        <h3>Conversion Rate</h3>
+        <p className="value">{summary.conversionRate}%</p>
+      </div>
+
+      <div className="card full-width">
+        <h3>Campaign Performance Report</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Campaign</th>
+              <th>Status</th>
+              <th>Clicks</th>
+              <th>Conversions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredActivities.map((item) => (
+              <tr key={item.campaign}>
+                <td>{item.campaign}</td>
+                <td>{item.status}</td>
+                <td>{item.clicks}</td>
+                <td>{item.conversions}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+
+  const renderAnalyticsPage = () => (
+    <section className="charts-grid">
+      <div className="card large-card">
+        <h3>Monthly Trend</h3>
+        <div className="chart-wrapper">
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={data.traffic}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis />
+              <Tooltip />
+              <Line type="monotone" dataKey="visits" strokeWidth={3} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Analytics Summary</h3>
+        <ul className="notes-list">
+          <li>Current data source: {dataSource === 'local' ? 'Local JSON' : 'Free API'}</li>
+          <li>Filtered rows: {filteredActivities.length}</li>
+          <li>Total clicks: {summary.totalClicks.toLocaleString()}</li>
+          <li>Total conversions: {summary.totalConversions.toLocaleString()}</li>
+        </ul>
+      </div>
+    </section>
+  )
+
+  const renderSettingsPage = () => (
+    <section className="settings-grid">
+      <div className="card">
+        <h3>Data Source</h3>
+        <p className="settings-text">Choose where the dashboard gets its data from.</p>
+        <div className="data-source-toggle">
+          <button
+            className={dataSource === 'local' ? 'toggle-btn active' : 'toggle-btn'}
+            onClick={() => setDataSource('local')}
+          >
+            Local JSON
+          </button>
+          <button
+            className={dataSource === 'api' ? 'toggle-btn active' : 'toggle-btn'}
+            onClick={() => setDataSource('api')}
+          >
+            Free API
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Filter Controls</h3>
+        <p className="settings-text">Clear all current search and filter settings.</p>
+        <button className="action-btn" onClick={resetFilters}>
+          Clear Filters
+        </button>
+      </div>
+    </section>
+  )
+
+  const renderPageContent = () => {
+    switch (activePage) {
+      case 'reports':
+        return renderReportsPage()
+      case 'analytics':
+        return renderAnalyticsPage()
+      case 'settings':
+        return renderSettingsPage()
+      case 'dashboard':
+      default:
+        return renderDashboardPage()
+    }
+  }
 
   return (
     <div className="dashboard">
       <aside className="sidebar">
         <h2>InsightX</h2>
-        <nav>
-          <p className="nav-active">Dashboard</p>
-          <p>Reports</p>
-          <p>Analytics</p>
-          <p>Settings</p>
+
+        <nav className="sidebar-nav">
+          <button
+            className={activePage === 'dashboard' ? 'nav-btn active' : 'nav-btn'}
+            onClick={() => setActivePage('dashboard')}
+          >
+            Dashboard
+          </button>
+
+          <button
+            className={activePage === 'reports' ? 'nav-btn active' : 'nav-btn'}
+            onClick={() => setActivePage('reports')}
+          >
+            Reports
+          </button>
+
+          <button
+            className={activePage === 'analytics' ? 'nav-btn active' : 'nav-btn'}
+            onClick={() => setActivePage('analytics')}
+          >
+            Analytics
+          </button>
+
+          <button
+            className={activePage === 'settings' ? 'nav-btn active' : 'nav-btn'}
+            onClick={() => setActivePage('settings')}
+          >
+            Settings
+          </button>
         </nav>
       </aside>
 
       <main className="main-content">
         <header className="topbar">
           <div>
-            <h1>Analytics Dashboard</h1>
-            <p>Interactive dashboard with local JSON and free API support</p>
-          </div>
-
-          <div className="data-source-toggle">
-            <button
-              className={dataSource === 'local' ? 'toggle-btn active' : 'toggle-btn'}
-              onClick={() => setDataSource('local')}
-            >
-              Local JSON
-            </button>
-            <button
-              className={dataSource === 'api' ? 'toggle-btn active' : 'toggle-btn'}
-              onClick={() => setDataSource('api')}
-            >
-              Free API
-            </button>
+            <h1>
+              {activePage.charAt(0).toUpperCase() + activePage.slice(1)}
+            </h1>
+            <p>Interactive analytics dashboard with working sidebar navigation</p>
           </div>
         </header>
 
-        <section className="stats-grid">
-          {data.stats.map((stat) => (
-            <div className="card stat-card" key={stat.title}>
-              <h3>{stat.title}</h3>
-              <p className="value">
-                {stat.title === 'Revenue' || stat.title === 'Avg Price'
-                  ? `$${Number(stat.value).toLocaleString()}`
-                  : Number(stat.value).toLocaleString()}
-                {stat.title === 'Bounce Rate' || stat.title === 'Avg Rating' ? '' : ''}
-              </p>
-              <span className={stat.change >= 0 ? 'change positive' : 'change negative'}>
-                {stat.change >= 0 ? '+' : ''}
-                {stat.change}%
-              </span>
-            </div>
-          ))}
-        </section>
-
-        <section className="charts-grid">
-          <div className="card large-card">
-            <h3>Traffic Overview</h3>
-            <div className="chart-wrapper">
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={data.traffic}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="visits" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="card filter-card">
-            <h3>Filters</h3>
-
-            <label>Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-
-            <label>Search Campaign</label>
-            <input
-              type="text"
-              placeholder="Type campaign name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-
-            <div className="filter-summary">
-              Showing <strong>{filteredActivities.length}</strong> result(s)
-            </div>
-          </div>
-        </section>
-
-        <section className="charts-grid second-row">
-          <div className="card large-card">
-            <h3>Trend Line</h3>
-            <div className="chart-wrapper">
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={data.traffic}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="visits" strokeWidth={3} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="card">
-            <h3>Quick Notes</h3>
-            <ul className="notes-list">
-              <li>Switch between local JSON and API data.</li>
-              <li>Search campaigns by keyword.</li>
-              <li>Filter rows by status.</li>
-              <li>Use this as a starter for a real analytics app.</li>
-            </ul>
-          </div>
-        </section>
-
-        <section className="card table-card">
-          <div className="table-header">
-            <h3>Recent Activity</h3>
-            <span className="pill">{dataSource === 'local' ? 'Local Data' : 'API Data'}</span>
-          </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Campaign</th>
-                <th>Status</th>
-                <th>Clicks</th>
-                <th>Conversions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredActivities.map((item) => (
-                <tr key={item.campaign}>
-                  <td>{item.campaign}</td>
-                  <td>
-                    <span className={`status-badge ${item.status.toLowerCase()}`}>
-                      {item.status}
-                    </span>
-                  </td>
-                  <td>{item.clicks}</td>
-                  <td>{item.conversions}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {filteredActivities.length === 0 && (
-            <p className="empty-state">No campaigns match your filter.</p>
-          )}
-        </section>
+        {renderPageContent()}
       </main>
     </div>
   )
