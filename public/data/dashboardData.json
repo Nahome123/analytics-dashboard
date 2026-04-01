@@ -1,0 +1,22 @@
+{
+  "stats": [
+    { "title": "Revenue", "value": 24500, "change": 12.4 },
+    { "title": "Users", "value": 8421, "change": 8.1 },
+    { "title": "Conversions", "value": 1204, "change": 5.6 },
+    { "title": "Bounce Rate", "value": 32.5, "change": -2.1 }
+  ],
+  "traffic": [
+    { "month": "Jan", "visits": 1200 },
+    { "month": "Feb", "visits": 1800 },
+    { "month": "Mar", "visits": 1600 },
+    { "month": "Apr", "visits": 2200 },
+    { "month": "May", "visits": 2600 },
+    { "month": "Jun", "visits": 3000 }
+  ],
+  "activities": [
+    { "campaign": "Spring Sale", "status": "Active", "clicks": 1240, "conversions": 182 },
+    { "campaign": "Email Retargeting", "status": "Paused", "clicks": 860, "conversions": 97 },
+    { "campaign": "Social Ads", "status": "Active", "clicks": 2010, "conversions": 240 },
+    { "campaign": "Referral Push", "status": "Draft", "clicks": 540, "conversions": 61 }
+  ]
+}
